@@ -1,66 +1,67 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Flight, FlightAnalysis, AircraftInfo } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 // Helper to calculate mock future dates
 const getTomorrowDate = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().split('T')[0];
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().split('T')[0];
 };
 
 // Helper to clean Markdown code blocks from JSON string
 const cleanJson = (text: string) => {
-  return text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    return text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 };
 
 export const searchFlights = async (origin: string, destination: string): Promise<Flight[]> => {
-  // Schema for Flight list
-  const flightSchema = {
-    type: Type.ARRAY,
-    items: {
-      type: Type.OBJECT,
-      properties: {
-        id: { type: Type.STRING },
-        airline: { type: Type.STRING },
-        flightNumber: { type: Type.STRING },
-        origin: { type: Type.STRING },
-        originCode: { type: Type.STRING },
-        destination: { type: Type.STRING },
-        destinationCode: { type: Type.STRING },
-        departureTime: { type: Type.STRING },
-        arrivalTime: { type: Type.STRING },
-        duration: { type: Type.STRING },
-      },
-      required: ["id", "airline", "flightNumber", "origin", "destination", "departureTime"],
-    },
-  };
+    // Schema for Flight list
+    const flightSchema = {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                id: { type: Type.STRING },
+                airline: { type: Type.STRING },
+                flightNumber: { type: Type.STRING },
+                origin: { type: Type.STRING },
+                originCode: { type: Type.STRING },
+                destination: { type: Type.STRING },
+                destinationCode: { type: Type.STRING },
+                departureTime: { type: Type.STRING },
+                arrivalTime: { type: Type.STRING },
+                duration: { type: Type.STRING },
+            },
+            required: ["id", "airline", "flightNumber", "origin", "destination", "departureTime"],
+        },
+    };
 
-  try {
-    // IMPORTANT: Using googleSearch tool to get REAL flight data
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Find REAL, scheduled direct commercial flights from "${origin}" to "${destination}" for tomorrow (${getTomorrowDate()}). 
+    try {
+        // IMPORTANT: Using googleSearch tool to get REAL flight data
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Find REAL, scheduled direct commercial flights from "${origin}" to "${destination}" for tomorrow (${getTomorrowDate()}). 
       Search for actual flight numbers (e.g., TKxxxx, BAxxxx) and their scheduled times on flight tracking sites or airline schedules. 
       Return the 5 most likely options based on standard schedules.
       Do not invent flight numbers if possible, use search results.
       The output must be JSON.`,
-      config: {
-        tools: [{googleSearch: {}}],
-        responseMimeType: "application/json",
-        responseSchema: flightSchema,
-      },
-    });
+            config: {
+                tools: [{ googleSearch: {} }],
+                responseMimeType: "application/json",
+                responseSchema: flightSchema,
+            },
+        });
 
-    if (response.text) {
-        return JSON.parse(cleanJson(response.text)) as Flight[];
+        if (response.text) {
+            return JSON.parse(cleanJson(response.text)) as Flight[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Flight search error:", error);
+        return [];
     }
-    return [];
-  } catch (error) {
-    console.error("Flight search error:", error);
-    return [];
-  }
 };
 
 export const analyzeFlight = async (flight: Flight): Promise<FlightAnalysis> => {
@@ -93,19 +94,19 @@ export const analyzeFlight = async (flight: Flight): Promise<FlightAnalysis> => 
                 properties: {
                     turbulence: {
                         type: Type.OBJECT,
-                        properties: { value: {type: Type.STRING}, unit: {type: Type.STRING}, description: {type: Type.STRING}, status: {type: Type.STRING, enum: ['good', 'moderate', 'caution']} }
+                        properties: { value: { type: Type.STRING }, unit: { type: Type.STRING }, description: { type: Type.STRING }, status: { type: Type.STRING, enum: ['good', 'moderate', 'caution'] } }
                     },
                     jetstream: {
                         type: Type.OBJECT,
-                        properties: { value: {type: Type.STRING}, unit: {type: Type.STRING}, description: {type: Type.STRING}, status: {type: Type.STRING, enum: ['good', 'moderate', 'caution']} }
+                        properties: { value: { type: Type.STRING }, unit: { type: Type.STRING }, description: { type: Type.STRING }, status: { type: Type.STRING, enum: ['good', 'moderate', 'caution'] } }
                     },
                     pressure: {
                         type: Type.OBJECT,
-                        properties: { value: {type: Type.STRING}, unit: {type: Type.STRING}, description: {type: Type.STRING}, status: {type: Type.STRING, enum: ['good', 'moderate', 'caution']} }
+                        properties: { value: { type: Type.STRING }, unit: { type: Type.STRING }, description: { type: Type.STRING }, status: { type: Type.STRING, enum: ['good', 'moderate', 'caution'] } }
                     },
                     visibility: {
                         type: Type.OBJECT,
-                        properties: { value: {type: Type.STRING}, unit: {type: Type.STRING}, description: {type: Type.STRING}, status: {type: Type.STRING, enum: ['good', 'moderate', 'caution']} }
+                        properties: { value: { type: Type.STRING }, unit: { type: Type.STRING }, description: { type: Type.STRING }, status: { type: Type.STRING, enum: ['good', 'moderate', 'caution'] } }
                     }
                 }
             },
@@ -136,7 +137,7 @@ export const analyzeFlight = async (flight: Flight): Promise<FlightAnalysis> => 
             model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
-                tools: [{googleSearch: {}}],
+                tools: [{ googleSearch: {} }],
                 responseMimeType: "application/json",
                 responseSchema: analysisSchema,
             },
